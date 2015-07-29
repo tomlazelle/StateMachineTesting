@@ -1,18 +1,17 @@
-﻿using Machine.Specifications;
-using Raven.Client.Embedded;
+﻿using Raven.Client.Embedded;
+using Should;
 using StateMachineTesting.Conditions;
 using StateMachineTesting.TestCode;
 
 namespace StateMachineTesting
 {
-    [Subject(typeof(StateMachine<>))]
-    public class multiple_states_persisted_and_recorded     
+    public class multiple_states_persisted_and_recorded_Test
     {
-        private static EmbeddableDocumentStore store;
-        
-        private static SimpleState stateMachine;
+        private EmbeddableDocumentStore store;
 
-        Establish create_state_machine_and_set_state = () =>
+        private SimpleState stateMachine;
+
+        public void Setup()
         {
             store = new EmbeddableDocumentStore
             {
@@ -20,20 +19,20 @@ namespace StateMachineTesting
             };
             store.Initialize();
 
-            
+
             stateMachine = new SimpleState(new RavenDbPersister(store));
-            stateMachine.TurnOn(new Lamp { Name = "Skippy",Id = 1});
+            stateMachine.TurnOn(new Lamp {Name = "Skippy", Id = 1});
+        }
 
-        };
 
-        Because of = () =>
+        public void state_should_be_off()
         {
-            stateMachine.TurnOff(new Lamp{Id=1,Name = "Skippy"});
-        };
+            stateMachine.TurnOff(new Lamp {Id = 1, Name = "Skippy"});
 
-        It state_should_be_off = () => stateMachine.State.Name.ShouldEqual("Off");
+            stateMachine.State.Name.ShouldEqual("Off");
+        }
 
-        It state_count_should_be_one = () =>
+        public void database_state_count_should_be_one()
         {
             using (var session = store.OpenSession())
             {
@@ -41,8 +40,8 @@ namespace StateMachineTesting
 
                 memento.PreviousStates.Count.ShouldEqual(1);
             }
-        };
+        }
 
-        private Cleanup cleanup = () => store.Dispose();
+    public void TearDown() { store.Dispose(); }
     }
 }

@@ -1,20 +1,23 @@
-﻿using Machine.Specifications;
+﻿using Should;
 using StateMachineTesting.Conditions;
 using StateMachineTesting.TestCode;
 
 namespace StateMachineTesting
 {
-    [Subject(typeof (StateMachine<>))]
     public class SimpleStateTest
     {
-        private static SimpleState machine;
+        private SimpleState machine;
 
-        private Establish context = () =>
+        public void Setup()
         {
             machine = new SimpleState(new ConsolePersister());
-        };
+        }
 
-        private Because of = () => machine.TurnOn(new Lamp());
-        private It the_current_state_should_be_waiting = () => machine.State.Name.ShouldEqual("On");
+
+        public void the_current_state_should_be_waiting()
+        {
+            machine.TurnOn(new Lamp());
+            machine.State.Name.ShouldEqual("On");
+        }
     }
 }
