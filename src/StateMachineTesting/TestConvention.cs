@@ -2,9 +2,7 @@
 using System.Linq;
 using System.Reflection;
 using Fixie;
-using Ploeh.AutoFixture;
-using Ploeh.AutoFixture.AutoNSubstitute;
-using Fixture = Fixie.Fixture;
+using Should;
 
 namespace StateMachineTesting
 {
@@ -12,56 +10,45 @@ namespace StateMachineTesting
     {
         public TestConvention()
         {
-            Classes.Where(x => x.Name.ToLower().EndsWith("test"));
+            Classes.NameEndsWith("Test");
 
-            ClassExecution
-                .CreateInstancePerClass()
-                .SortCases(CompareNumber);
+            ClassExecution.CreateInstancePerClass();
 
-            Methods.Where(x =>
-                x.IsVoid() &&
+            Methods
+                .Where(
+                x => x.IsVoid() && 
                 x.IsPublic &&
-                x.Name != "FixtureSetup" &&
-                x.Name != "FixtureTeardown");
+                x.Name != "Setup" &&
+                x.Name != "TearDown");
 
-            FixtureExecution.Wrap<AMFixtureBehavior>();
-        }
-
-        public int CompareNumber(Case x, Case y)
-        {
-            if (x.Method.GetCustomAttributes(typeof (OrderByAttribute)) == null) return 0;
-
-            var xInt = ((OrderByAttribute) x.Method.GetCustomAttributes(typeof (OrderByAttribute)).First()).Index;
-            var yInt = ((OrderByAttribute) y.Method.GetCustomAttributes(typeof (OrderByAttribute)).First()).Index;
-
-            return xInt.CompareTo(yInt);
+            FixtureExecution
+                .Wrap<FixtureSetupTearDown>();
         }
     }
 
-    [AttributeUsage(AttributeTargets.Method)]
-    public class OrderByAttribute : Attribute
-    {
-        public int Index { get; set; }
-    }
-
-    public class AMFixtureBehavior : FixtureBehavior
+    public class FixtureSetupTearDown : FixtureBehavior
     {
         public void Execute(Fixture context, Action next)
         {
-            var registry = new Ploeh.AutoFixture.Fixture().Customize(new AutoNSubstituteCustomization());
-
-
-            context.Instance.GetType().TryInvoke("FixtureSetup", context.Instance, registry);
-
+            FixtureSetUp(context);
             next();
+            FixtureTearDown(context);
+        }
 
-            context.Instance.GetType().TryInvoke("FixtureTeardown", context.Instance);
+        protected void FixtureSetUp(Fixture fixture)
+        {
+            fixture.Instance.GetType().TryInvoke("Setup",fixture.Instance);            
+        }
+
+        protected void FixtureTearDown(Fixture fixture)
+        {
+            fixture.Instance.GetType().TryInvoke("TearDown", fixture.Instance);
         }
     }
 
     public static class BehaviorBuilderExtensions
     {
-        public static void TryField(this Fixture context, string fieldName, object fieldValue)
+        public static void TryField(this Fixie.Fixture context, string fieldName, object fieldValue)
         {
             var lifecycleMethod = context.Class.Type.GetField(fieldName, BindingFlags.Public | BindingFlags.Instance);
 
@@ -78,39 +65,24 @@ namespace StateMachineTesting
             }
         }
 
-        public static void TryInvoke(this Type type, string method, object instance, IFixture fixture = null)
+
+        public static void TryInvoke(this Type type, string method, object instance)
         {
-            var lifecycleMethod = type.GetMethod(method);
-            //                type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            //                    .SingleOrDefault(x => ReflectionExtensions.HasSignature(x, typeof(void), method));
+            var lifecycleMethod =
+                type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                    .SingleOrDefault(x => x.HasSignature(typeof(void), method));
 
             if (lifecycleMethod == null)
                 return;
 
             try
             {
-                if (fixture == null)
-                {
-                    lifecycleMethod.Invoke(instance, null);
-                }
-                else
-                {
-                    lifecycleMethod.Invoke(instance, new object[]
-                    {
-                        fixture
-                    });
-                }
+                lifecycleMethod.Invoke(instance, null);
             }
             catch (TargetInvocationException exception)
             {
                 throw new PreservedException(exception.InnerException);
             }
         }
-    }
-
-    public abstract class BaseTest
-    {
-        public abstract void FixtureSetup(IFixture registry);
-        public abstract void FixtureTeardown();
     }
 }
