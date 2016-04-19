@@ -3,6 +3,7 @@ using StateMachineTesting.Conditions;
 
 namespace StateMachineTesting.TestCode
 {
+    
     public class SimpleState : StateMachine<Lamp>
     {
 
@@ -21,8 +22,8 @@ namespace StateMachineTesting.TestCode
         public Action<Lamp> TurnOn;
         public Action<Lamp> TurnOff;
 
-        private State On = new State("On");
-        private State Off = new State("Off");
+        public State On = new State("On");
+        public State Off = new State("Off");
 
         public SimpleState()
         {

@@ -3,7 +3,7 @@ using StateMachineTesting.Common;
 
 namespace StateMachineTesting.Conditions
 {
-    public class StateEvent<T>
+    public class StateEvent<T> where T : IStateMessage
     {
         private readonly Func<T, bool> _doTAction;
         private readonly Action<State> _stateChange;
@@ -32,16 +32,22 @@ namespace StateMachineTesting.Conditions
 
             if (result)
             {
-                _stateChange.Invoke(_state);
-
-                var stateMemento = FetchState(((IStateMessage)message).Id);
-
-                stateMemento.UpdateState(message.ToDynamic(), _state);
-
-                PersistState(stateMemento);
+                PersistSate(message);
             }
 
             return result;
+        }
+
+        public void PersistSate(IStateMessage message)
+        {
+
+            _stateChange.Invoke(_state);
+
+            var stateMemento = FetchState(message.Id);
+
+            stateMemento.UpdateState(message.ToDynamic(), _state);
+
+            PersistState(stateMemento);
         }
 
         private StateMemento FetchState(int id)
